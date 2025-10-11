@@ -1,4 +1,48 @@
+server:
+  port: 8082
+  servlet:
+    context-path: /api
+
 spring:
   application:
     name: ai_travel_agent
 
+  # Redis??
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 1
+
+  # ?????
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5432/postgres
+    username: root
+    password: root
+    driver-class-name: org.postgresql.Driver
+
+  # Spring AI??
+  ai:
+    dashscope:
+      api-key: ${ai.dashscope.api-key}
+      chat:
+        options:
+          model: qwen-plus
+    chat:
+      client:
+        enabled: false #??ChatClient.Builder????????????????
+    # ??????? (?? pgvector)
+    vectorstore:
+      pgvector:
+        distance-type: COSINE_DISTANCE
+        dimensions: 1536
+        max-document-batch-size: 10000 # Optional: Maximum number of documents per batch
+        table-name: vector_store
+        index-type: HNSW
+
+
+
+# ????
+logging:
+  level:
+    root: INFO
