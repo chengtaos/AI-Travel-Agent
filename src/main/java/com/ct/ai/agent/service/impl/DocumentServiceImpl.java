@@ -26,7 +26,7 @@ public class DocumentServiceImpl implements DocumentService {
     private KeywordEnricher keywordEnricher;
 
 
-    @Resource(name = "vectorStore")
+    @Resource(name = "customVectorStore")
     private VectorStore vectorStore;
 
     @Value("${rag.default-strategy:local-pgvector}")
