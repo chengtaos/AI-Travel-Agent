@@ -114,6 +114,8 @@ logging:
 # 工具调用超时和降级参数
 agent:
   tool:
-    timeout-ms: 20000  # 超时时间20秒
-    max-consecutive-failures: 2  # 连续失败2次则降级
-    fallback-to-cache: true
+    timeout-ms: 30000                   # 工具超时时间30秒
+    max-consecutive-failures: 3         # 连续失败3次降级
+    fallback-to-cache: true             # 降级时返回缓存
+    session-ttl-hours: 24               # 会话24小时无活动过期
+    max-session-messages: 100           # 单会话最大100条消息

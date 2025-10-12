@@ -57,6 +57,10 @@ public interface AgentService {
      */
     AgentResponseVO resetAgent();
 
+    AgentResponseVO getAgentStatus(String sessionId);
+
+    AgentResponseVO resetAgent(String sessionId);
+
     /**
      * 关闭流式连接
      *
@@ -70,7 +74,6 @@ public interface AgentService {
      *
      * @param sessionId 会话ID
      * @param message   消息内容
-     * @return 是否保存成功
      */
-    boolean saveAgentHistory(String sessionId, ChatMessageDTO message);
+    void saveAgentHistory(String sessionId, ChatMessageDTO message);
 }

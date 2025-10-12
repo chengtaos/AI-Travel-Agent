@@ -2,19 +2,20 @@ package com.ct.ai.agent.agent;
 
 import com.ct.ai.agent.agent.property.ToolCallProperties;
 import com.ct.ai.agent.llm.advisor.LoggerAdvisor;
+import com.ct.ai.agent.util.SessionContextManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Scope;
 
 /**
  * 继承工具调用智能体（ToolCallAgent），具备自主任务规划、工具自动选择、复杂问题拆解能力
  * 通过整合多类工具，自动匹配最优解决方案，支持多步骤交互处理用户复杂需求
  */
-@Component
 @Slf4j
+@Scope("prototype") // 保留原型作用域（工厂创建时仍需独立实例）
 public class MyAgent extends ToolCallAgent {
 
     /**
@@ -50,18 +51,13 @@ public class MyAgent extends ToolCallAgent {
             核心目标：找到最高效的任务解决路径，减少不必要的步骤。
             """;
 
-
-    /**
-     * 构造函数：初始化MyAgent的核心配置
-     * 注入依赖（可用工具、大模型），设置智能体基础属性
-     *
-     * @param allTools           所有可用工具（通过@Qualifier指定注入"allTools"标识的工具数组）
-     * @param dashscopeChatModel 大语言模型（如DashScope提供的LLM，智能体的"大脑"）
-     */
+    // 2. 构造函数保留不变（但因移除了@Component，Spring不会再自动调用此构造函数）
     public MyAgent(@Qualifier("allTools") ToolCallback[] allTools,
                    ChatModel dashscopeChatModel,
-                   ToolCallProperties toolCallProperties) {
-        super(allTools, toolCallProperties); // 调用父类构造函数，传入可用工具列表
+                   ToolCallProperties toolCallProperties,
+                   SessionContextManager contextManager,
+                   String chatId) {
+        super(allTools, toolCallProperties, contextManager, chatId); // 调用父类构造函数，传入可用工具列表
 
         try {
             // 1. 设置智能体基础属性
@@ -70,17 +66,17 @@ public class MyAgent extends ToolCallAgent {
             this.setNextStepPrompt(NEXT_STEP_PROMPT); // 注入下一步引导提示词
             this.setMaxSteps(20); // 最大执行步骤（避免因逻辑异常导致无限循环）
 
-            log.info("初始化MyAgent智能体，可用工具数量：{}",
-                    allTools != null ? allTools.length : 0);
+            log.info("初始化MyAgent智能体，可用工具数量：{}，会话ID：{}",
+                    allTools != null ? allTools.length : 0, chatId); // 日志增加chatId，便于追踪
 
             // 2. 初始化大模型对话客户端（智能体与大模型的交互入口）
             ChatClient chatClient = ChatClient.builder(dashscopeChatModel)
                     .defaultAdvisors(new LoggerAdvisor())
                     .build();
             this.setChatClient(chatClient);
-            log.info("MyAgent智能体初始化完成，已具备任务处理能力");
+            log.info("MyAgent智能体初始化完成，会话ID：{}，已具备任务处理能力", chatId);
         } catch (Exception e) {
-            log.error("MyAgent智能体初始化失败", e);
+            log.error("MyAgent智能体初始化失败，会话ID：{}", chatId, e);
             throw new RuntimeException("MyAgent智能体初始化失败：" + e.getMessage(), e);
         }
     }
@@ -94,6 +90,7 @@ public class MyAgent extends ToolCallAgent {
     public void reset() {
         super.reset(); // 调用父类重置方法：恢复状态为IDLE、清空会话历史、重置步骤计数
         // 可扩展MyAgent专属重置逻辑（如清空工具调用缓存、恢复默认配置等）
-        log.debug("MyAgent智能体重置完成，已准备好接收新任务");
+        log.debug("MyAgent智能体重置完成，会话ID：{}，已准备好接收新任务", this.getChatId()); // 日志增加chatId
     }
+
 }

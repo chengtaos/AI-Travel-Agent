@@ -4,6 +4,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatOptions;
 import com.ct.ai.agent.agent.property.ToolCallProperties;
+import com.ct.ai.agent.util.SessionContextManager;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,7 @@ public class ToolCallAgent extends ReActAgent {
     // 存储大模型返回的工具调用响应（思考阶段结果）
     private ChatResponse toolCallChatResponse;
 
+    private String chatId; //会话唯一标识
     // 工具调用管理器（Spring AI提供，用于执行具体工具调用逻辑）
     private final ToolCallingManager toolCallingManager;
 
@@ -55,17 +57,17 @@ public class ToolCallAgent extends ReActAgent {
     private boolean lastToolCallSuccess = true; // 上一次工具调用是否成功
     private int consecutiveFailures = 0; // 连续失败次数
     private static final int MAX_CONSECUTIVE_FAILURES = 3; // 最大连续失败阈值
+    private final SessionContextManager contextManager; // 上下文管理器
 
-
-    /**
-     * 构造函数：初始化工具列表、工具管理器、大模型配置
-     *
-     * @param availableTools 智能体可调用的工具数组
-     */
-    public ToolCallAgent(ToolCallback[] availableTools, ToolCallProperties toolCallProperties) {
+    public ToolCallAgent(ToolCallback[] availableTools,
+                         ToolCallProperties toolCallProperties,
+                         SessionContextManager contextManager,
+                         String chatId) {
         super();
         this.availableTools = availableTools;
         this.toolCallProperties = toolCallProperties;
+        this.contextManager = contextManager;
+        this.chatId = chatId;
         this.toolCallingManager = ToolCallingManager.builder().build(); // 初始化工具调用管理器
         // 配置大模型：禁用内置工具执行，自主控制工具调用流程
         this.chatOptions = DashScopeChatOptions.builder()
@@ -76,6 +78,20 @@ public class ToolCallAgent extends ReActAgent {
                 getName(), availableTools != null ? availableTools.length : 0);
     }
 
+    public List<Message> getMessageList() {
+        // 从Redis获取上下文
+        return contextManager.getContext(chatId);
+    }
+
+    public void setMessageList(List<Message> messageList) {
+        // 保存到Redis（自动控制大小和TTL）
+        contextManager.saveContext(chatId, messageList);
+    }
+
+    public void clearSessionContext() {
+        contextManager.clearContext(chatId);
+        log.info("[工具调用智能体: {}] 会话[{}]上下文已清理", getName(), chatId);
+    }
 
     /**
      * 思考阶段（实现ReAct抽象方法）
@@ -156,7 +172,8 @@ public class ToolCallAgent extends ReActAgent {
 
         try {
             log.debug("[工具调用智能体: {}] 行动阶段 - 开始执行工具调用", getName());
-            Prompt prompt = new Prompt(getMessageList(), this.chatOptions);
+            List<Message> messages = getMessageList(); // 从Redis读取
+            Prompt prompt = new Prompt(messages, this.chatOptions);
 
             // 使用CompletableFuture实现超时控制
             ToolExecutionResult toolExecutionResult = CompletableFuture.supplyAsync(() ->
@@ -186,6 +203,8 @@ public class ToolCallAgent extends ReActAgent {
 
             String formattedResult = formatToolResults(toolResponseMessage);
             log.info("[工具调用智能体: {}] 工具调用结果：{}", getName(), formattedResult);
+
+
             return formattedResult;
 
         } catch (TimeoutException e) { // 捕获超时异常
@@ -282,9 +301,7 @@ public class ToolCallAgent extends ReActAgent {
      * 工具执行结果中包含完整会话历史，最后一条通常是工具响应
      */
     private Optional<ToolResponseMessage> getLastToolResponseMessage(ToolExecutionResult toolExecutionResult) {
-        if (toolExecutionResult == null ||
-                toolExecutionResult.conversationHistory() == null ||
-                toolExecutionResult.conversationHistory().isEmpty()) {
+        if (toolExecutionResult == null || toolExecutionResult.conversationHistory().isEmpty()) {
             return Optional.empty();
         }
 
