@@ -393,7 +393,6 @@ public class AgentServiceImpl implements AgentService {
         log.debug("【错误处理】会话初始化失败，清理资源：{}", sessionId);
     }
 
-    // ------------------------------ 重载方法（兼容原有接口） ------------------------------
     @Override
     public AgentResponseVO getAgentStatus() {
         // 兼容原有无参方法，返回所有活跃会话汇总状态

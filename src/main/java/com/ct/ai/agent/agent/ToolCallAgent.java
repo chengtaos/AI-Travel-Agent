@@ -5,6 +5,7 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatOptions;
 import com.ct.ai.agent.agent.property.ToolCallProperties;
 import com.ct.ai.agent.util.SessionContextManager;
+import jakarta.annotation.Resource;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -37,7 +39,8 @@ import java.util.stream.Collectors;
 @Data // 自动生成getter/setter、toString等方法
 @Slf4j
 public class ToolCallAgent extends ReActAgent {
-
+    @Resource(name = "toolCallExecutor")
+    private Executor toolCallExecutor;
     // 智能体可调用的工具列表（外部注入，如查询工具、计算工具等）
     private final ToolCallback[] availableTools;
 
@@ -177,8 +180,8 @@ public class ToolCallAgent extends ReActAgent {
 
             // 使用CompletableFuture实现超时控制
             ToolExecutionResult toolExecutionResult = CompletableFuture.supplyAsync(() ->
-                    toolCallingManager.executeToolCalls(prompt, toolCallChatResponse)
-            ).get(toolCallProperties.getTimeoutMs(), TimeUnit.MILLISECONDS); // 从配置获取超时时间
+                            toolCallingManager.executeToolCalls(prompt, toolCallChatResponse), toolCallExecutor)
+                    .get(toolCallProperties.getTimeoutMs(), TimeUnit.MILLISECONDS);
 
             // 更新会话上下文
             setMessageList(toolExecutionResult.conversationHistory());

@@ -2,6 +2,7 @@ package com.ct.ai.agent.controller;
 
 import com.ct.ai.agent.service.ChatService;
 import com.ct.ai.agent.vo.ReportVO;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import jakarta.annotation.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -47,8 +48,21 @@ public class ChatController {
      * @return 包含流式文本的 Flux（响应式编程模型，支持背压）
      */
     @GetMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> doChatStream(@RequestParam String message, @RequestParam String chatId) {
-        return chatService.doChatByStream(message, chatId);
+    @RateLimiter(name = "streamApiLimiter", fallbackMethod = "streamFallback")
+    public Flux<ServerSentEvent<String>> doChatStream(
+            @RequestParam String message,
+            @RequestParam String chatId) {
+        return chatService.doChatByStream(message, chatId)
+                .map(chunk -> ServerSentEvent.<String>builder()
+                        .data(chunk)
+                        .build());
+    }
+
+    // 限流 fallback 方法
+    public Flux<ServerSentEvent<String>> streamFallback(String message, String chatId, Exception e) {
+        return Flux.just(ServerSentEvent.<String>builder()
+                .data("当前请求过多，请稍后再试")
+                .build());
     }
 
     /**

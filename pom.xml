@@ -39,6 +39,7 @@
         <json.schema.version>4.38.0</json.schema.version>
         <pdf.version>9.1.0</pdf.version>
         <jsoup.version>1.19.1</jsoup.version>
+        <resilience4j.version>1.7.1</resilience4j.version>
     </properties>
 
 
@@ -144,6 +145,16 @@
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
             <version>${jsoup.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot2</artifactId>
+            <version>${resilience4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-ratelimiter</artifactId>
+            <version>${resilience4j.version}</version>
         </dependency>
     </dependencies>
 
