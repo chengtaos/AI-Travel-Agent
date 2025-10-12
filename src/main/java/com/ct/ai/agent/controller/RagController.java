@@ -22,8 +22,8 @@ public class RagController {
      * RAG流式对话接口（支持指定检索策略）
      * 接收用户消息、会话ID、检索策略，返回流式SSE结果
      *
-     * @param message 用户输入的对话消息（如"介绍AI智能体的核心功能"）
-     * @param chatId  会话ID（用于关联多轮对话上下文，避免上下文丢失）
+     * @param message  用户输入的对话消息（如"介绍AI智能体的核心功能"）
+     * @param chatId   会话ID（用于关联多轮对话上下文，避免上下文丢失）
      * @param strategy 可选：检索策略名称（local-pgvector/aliyun-dashscope，默认用配置的rag.default-strategy）
      * @return 流式响应（ServerSentEvent）：每段回答内容封装为SSE事件
      */
