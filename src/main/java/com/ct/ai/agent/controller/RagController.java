@@ -1,5 +1,6 @@
 package com.ct.ai.agent.controller;
 
+import com.ct.ai.agent.service.RagService;
 import jakarta.annotation.Resource;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.GetMapping;
