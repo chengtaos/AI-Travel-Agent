@@ -59,7 +59,7 @@ public class SpringDocConfig {
                 .resolveAsResolvedSchema(
                         new AnnotatedType(BaseResponse.class).resolveAsRef(false));
 
-        // 若解析成功，将BaseResponse模型存入Ma
+        // 若解析成功，将BaseResponse模型存入Map
         if (resolvedSchema.schema != null) {
             schemaMap.put("BaseResponse", resolvedSchema.schema);
         }
