@@ -35,6 +35,8 @@
         <hutool.version>5.8.37</hutool.version>
         <mybatis.version>3.5.12</mybatis.version>
         <ai.alibaba.version>1.0.0.2</ai.alibaba.version>
+        <dashscope.version>2.20.2</dashscope.version>
+        <json.schema.version>4.38.0</json.schema.version>
     </properties>
 
 
@@ -66,6 +68,10 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-advisors-vector-store</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-vector-store-pgvector</artifactId>
         </dependency>
         <dependency>
             <groupId>com.github.xiaoymin</groupId>
@@ -110,6 +116,16 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>dashscope-sdk-java</artifactId>
+            <version>${dashscope.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.victools</groupId>
+            <artifactId>jsonschema-generator</artifactId>
+            <version>${json.schema.version}</version>
         </dependency>
     </dependencies>
 
