@@ -38,6 +38,7 @@
         <dashscope.version>2.20.2</dashscope.version>
         <json.schema.version>4.38.0</json.schema.version>
         <pdf.version>9.1.0</pdf.version>
+        <jsoup.version>1.19.1</jsoup.version>
     </properties>
 
 
@@ -137,6 +138,12 @@
             <artifactId>itext-core</artifactId>
             <version>${pdf.version}</version>
             <type>pom</type>
+        </dependency>
+        <!-- 网页抓取，添加jsoup依赖 -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>${jsoup.version}</version>
         </dependency>
     </dependencies>
 

@@ -41,7 +41,9 @@ spring:
         table-name: vector_store
         index-type: HNSW
 
-
+search:
+  api:
+    key: ${search.api.key} # https://www.searchapi.io/ 网页搜索，注册获取API-KEY
 
 # 日志配置
 logging:
