@@ -3,6 +3,7 @@ package com.ct.ai.agent.controller;
 import com.ct.ai.agent.service.AgentService;
 import com.ct.ai.agent.vo.AgentRequestVO;
 import com.ct.ai.agent.vo.AgentResponseVO;
+import com.ct.ai.agent.vo.BaseResponse;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -34,7 +35,7 @@ public class AgentController {
      * 适用场景：仅需传入用户输入内容，无需额外配置（如“回答问题”“生成简短文本”）
      */
     @PostMapping("/execute")
-    public ResponseEntity<AgentResponseVO> executeTask(
+    public ResponseEntity<BaseResponse<AgentResponseVO>> executeTask(
             @RequestParam @NotBlank(message = "用户请求内容不能为空") String prompt,
             @RequestParam(required = false) String sessionId) {
         String finalSessionId = sessionId != null ? sessionId.trim() : UUID.randomUUID().toString();
@@ -42,22 +43,18 @@ public class AgentController {
                 finalSessionId, prompt.trim().length());
 
         try {
-            String result = agentService.executeTask(prompt.trim(),sessionId);
-            AgentResponseVO successResponse = new AgentResponseVO()
+            String result = agentService.executeTask(prompt.trim(), sessionId);
+            AgentResponseVO responseData = new AgentResponseVO()
                     .setStatus("success")
                     .setResult(result)
                     .setMessage("处理完成")
                     .setSessionId(finalSessionId);
-            return ResponseEntity.ok(successResponse);
+            return ResponseEntity.ok(BaseResponse.success(responseData));
 
         } catch (Exception e) {
             log.error("【基础同步接口】处理失败，sessionId：{}", finalSessionId, e);
-            AgentResponseVO errorResponse = new AgentResponseVO()
-                    .setStatus("error")
-                    .setResult(null)
-                    .setMessage("处理失败：" + e.getMessage())
-                    .setSessionId(finalSessionId);
-            return ResponseEntity.status(500).body(errorResponse);
+            return ResponseEntity.status(500)
+                    .body(BaseResponse.error(5001, "处理失败：" + e.getMessage()));
         }
     }
 
@@ -67,7 +64,7 @@ public class AgentController {
      * 适用场景：需自定义智能体行为（如指定角色、携带会话上下文、开启工具调用）
      */
     @PostMapping("/execute/advanced")
-    public ResponseEntity<AgentResponseVO> executeAdvancedTask(@Valid @RequestBody AgentRequestVO request) {
+    public ResponseEntity<BaseResponse<AgentResponseVO>> executeAdvancedTask(@Valid @RequestBody AgentRequestVO request) {
         // 补全会话ID：请求中无则生成新ID
         if (request.getSessionId() == null) {
             request.setSessionId(UUID.randomUUID().toString());
@@ -77,16 +74,12 @@ public class AgentController {
         try {
             AgentResponseVO response = agentService.executeAdvancedTask(request);
             response.setSessionId(request.getSessionId());
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(BaseResponse.success(response));
 
         } catch (Exception e) {
             log.error("【高级同步接口】处理失败，sessionId：{}", request.getSessionId(), e);
-            AgentResponseVO errorResponse = new AgentResponseVO()
-                    .setStatus("error")
-                    .setResult(null)
-                    .setMessage("处理失败：" + e.getMessage())
-                    .setSessionId(request.getSessionId());
-            return ResponseEntity.status(500).body(errorResponse);
+            return ResponseEntity.status(500)
+                    .body(BaseResponse.error(5001, "处理失败：" + e.getMessage()));
         }
     }
 
@@ -104,17 +97,17 @@ public class AgentController {
         log.info("【基础流式接口】接收到请求，sessionId：{}，prompt长度：{}字符",
                 finalSessionId, prompt.trim().length());
         try {
-            return agentService.executeTaskStream(prompt.trim(),finalSessionId);
+            return agentService.executeTaskStream(prompt.trim(), finalSessionId);
         } catch (Exception e) {
             log.error("【基础流式接口】创建连接失败，sessionId：{}", finalSessionId, e);
             SseEmitter errorEmitter = new SseEmitter(3000L); // 3秒超时，避免连接挂起
             try {
-                // 标准错误事件：name="error"，便于前端统一捕获
+                // 流式响应也用BaseResponse包装错误信息
                 errorEmitter.send(SseEmitter.event()
                         .name("error")
-                        .id(finalSessionId) // 事件ID绑定会话ID
-                        .data("流式连接创建失败：" + e.getMessage()));
-                errorEmitter.completeWithError(e); // 标记连接错误完成
+                        .id(finalSessionId)
+                        .data(BaseResponse.error(5001, "流式连接创建失败：" + e.getMessage())));
+                errorEmitter.completeWithError(e);
             } catch (Exception ex) {
                 log.error("【基础流式接口】发送错误事件失败，sessionId：{}", finalSessionId, ex);
             }
@@ -145,7 +138,7 @@ public class AgentController {
                 errorEmitter.send(SseEmitter.event()
                         .name("error")
                         .id(request.getSessionId())
-                        .data("流式连接创建失败：" + e.getMessage()));
+                        .data(BaseResponse.error(5001, "流式连接创建失败：" + e.getMessage())));
                 errorEmitter.completeWithError(e);
             } catch (Exception ex) {
                 log.error("【高级流式接口】发送错误事件失败，sessionId：{}", request.getSessionId(), ex);
@@ -160,7 +153,7 @@ public class AgentController {
      * 支持两种模式：1. 传sessionId查询指定会话状态；2. 不传查询所有活跃会话汇总
      */
     @GetMapping("/status")
-    public ResponseEntity<AgentResponseVO> getAgentStatus(
+    public ResponseEntity<BaseResponse<AgentResponseVO>> getAgentStatus(
             @RequestParam(required = false) String sessionId) {
 
         log.info("【状态查询接口】接收到请求，查询sessionId：{}", sessionId);
@@ -173,16 +166,12 @@ public class AgentController {
                 // 模式2：查询全局活跃会话汇总
                 statusResponse = agentService.getAgentStatus();
             }
-            return ResponseEntity.ok(statusResponse);
+            return ResponseEntity.ok(BaseResponse.success(statusResponse));
 
         } catch (Exception e) {
             log.error("【状态查询接口】查询失败，sessionId：{}", sessionId, e);
-            AgentResponseVO errorResponse = new AgentResponseVO()
-                    .setStatus("error")
-                    .setResult(null)
-                    .setMessage("查询失败：" + e.getMessage())
-                    .setSessionId(sessionId);
-            return ResponseEntity.status(500).body(errorResponse);
+            return ResponseEntity.status(500)
+                    .body(BaseResponse.error(5001, "查询失败：" + e.getMessage()));
         }
     }
 
@@ -192,7 +181,7 @@ public class AgentController {
      * 支持两种模式：1. 传sessionId重置指定会话；2. 不传提示需指定会话（避免误操作全局）
      */
     @PostMapping("/reset")
-    public ResponseEntity<AgentResponseVO> resetAgent(
+    public ResponseEntity<BaseResponse<AgentResponseVO>> resetAgent(
             @RequestParam(required = false) String sessionId) {
 
         log.info("【重置接口】接收到请求，重置sessionId：{}", sessionId);
@@ -208,16 +197,12 @@ public class AgentController {
                         .setResult(null)
                         .setMessage("请传入sessionId，指定需重置的会话");
             }
-            return ResponseEntity.ok(resetResponse);
+            return ResponseEntity.ok(BaseResponse.success(resetResponse));
 
         } catch (Exception e) {
             log.error("【重置接口】重置失败，sessionId：{}", sessionId, e);
-            AgentResponseVO errorResponse = new AgentResponseVO()
-                    .setStatus("error")
-                    .setResult(null)
-                    .setMessage("重置失败：" + e.getMessage())
-                    .setSessionId(sessionId);
-            return ResponseEntity.status(500).body(errorResponse);
+            return ResponseEntity.status(500)
+                    .body(BaseResponse.error(5001, "重置失败：" + e.getMessage()));
         }
     }
 
@@ -226,7 +211,7 @@ public class AgentController {
      * 流式连接关闭接口：主动关闭指定会话的流式连接
      */
     @PostMapping("/stream/close/{sessionId}")
-    public ResponseEntity<AgentResponseVO> closeStream(
+    public ResponseEntity<BaseResponse<AgentResponseVO>> closeStream(
             @PathVariable @NotBlank(message = "会话ID不能为空") String sessionId) {
 
         String finalSessionId = sessionId.trim();
@@ -234,16 +219,12 @@ public class AgentController {
 
         try {
             AgentResponseVO closeResponse = agentService.closeStream(finalSessionId);
-            return ResponseEntity.ok(closeResponse);
+            return ResponseEntity.ok(BaseResponse.success(closeResponse));
 
         } catch (Exception e) {
             log.error("【关闭流式连接接口】关闭失败，sessionId：{}", finalSessionId, e);
-            AgentResponseVO errorResponse = new AgentResponseVO()
-                    .setStatus("error")
-                    .setResult(null)
-                    .setMessage("关闭失败：" + e.getMessage())
-                    .setSessionId(finalSessionId);
-            return ResponseEntity.status(500).body(errorResponse);
+            return ResponseEntity.status(500)
+                    .body(BaseResponse.error(5001, "关闭失败：" + e.getMessage()));
         }
     }
 }

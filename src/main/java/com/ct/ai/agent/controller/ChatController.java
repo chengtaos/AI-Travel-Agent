@@ -1,11 +1,11 @@
 package com.ct.ai.agent.controller;
 
 import com.ct.ai.agent.service.ChatService;
+import com.ct.ai.agent.vo.BaseResponse;
 import com.ct.ai.agent.vo.ReportVO;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import jakarta.annotation.Resource;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,11 +32,16 @@ public class ChatController {
      *
      * @param message 用户输入的聊天消息
      * @param chatId  聊天会话唯一标识（用于关联上下文）
-     * @return 包含 AI 响应文本的 ResponseEntity
+     * @return 包含 AI 响应文本的统一响应对象
      */
     @GetMapping("/chat")
-    public ResponseEntity<String> doChat(@RequestParam String message, @RequestParam String chatId) {
-        return ResponseEntity.ok(chatService.doChat(message, chatId));
+    public BaseResponse<String> doChat(@RequestParam String message, @RequestParam String chatId) {
+        try {
+            String result = chatService.doChat(message, chatId);
+            return BaseResponse.success(result);
+        } catch (Exception e) {
+            return BaseResponse.businessError("聊天服务异常：" + e.getMessage());
+        }
     }
 
     /**
@@ -61,7 +66,7 @@ public class ChatController {
     // 限流 fallback 方法
     public Flux<ServerSentEvent<String>> streamFallback(String message, String chatId, Exception e) {
         return Flux.just(ServerSentEvent.<String>builder()
-                .data("当前请求过多，请稍后再试")
+                .data(BaseResponse.error(1002, "当前请求过多，请稍后再试").getMessage())
                 .build());
     }
 
@@ -74,10 +79,15 @@ public class ChatController {
      * @return 包装为 ServerSentEvent 的 Flux 流（包含事件 ID、类型等元数据）
      */
     @GetMapping(value = "/chat/stream-sse", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<String>> doChatStreamSse(@RequestParam String message, @RequestParam String chatId) {
+    public Flux<ServerSentEvent<BaseResponse<String>>> doChatStreamSse(
+            @RequestParam String message,
+            @RequestParam String chatId) {
         return chatService.doChatByStream(message, chatId)
-                .map(chunk -> ServerSentEvent.<String>builder()
-                        .data(chunk)
+                .map(chunk -> ServerSentEvent.<BaseResponse<String>>builder()
+                        .data(BaseResponse.success(chunk))
+                        .build())
+                .onErrorReturn(ServerSentEvent.<BaseResponse<String>>builder()
+                        .data(BaseResponse.businessError("流式响应异常"))
                         .build());
     }
 
@@ -98,19 +108,41 @@ public class ChatController {
                 .subscribe(
                         chunk -> {
                             try {
-                                sseEmitter.send(chunk);
+                                sseEmitter.send(BaseResponse.success(chunk));
                             } catch (IOException e) {
                                 sseEmitter.completeWithError(e);  // 推送失败时标记错误
                             }
                         },
                         // 发生异常时：标记错误并结束
-                        sseEmitter::completeWithError,
+                        error -> {
+                            try {
+                                sseEmitter.send(BaseResponse.businessError("流式推送异常：" + error.getMessage()));
+                            } catch (IOException e) {
+                                // 忽略发送错误
+                            }
+                            sseEmitter.completeWithError(error);
+                        },
                         // 流结束时：正常完成连接
-                        sseEmitter::complete
+                        () -> {
+                            try {
+                                sseEmitter.send(BaseResponse.success(null, "流式响应结束"));
+                            } catch (IOException e) {
+                                // 忽略发送错误
+                            }
+                            sseEmitter.complete();
+                        }
                 );
 
         // 注册连接超时/完成的回调
-        sseEmitter.onTimeout(sseEmitter::complete);
+        sseEmitter.onTimeout(() -> {
+            try {
+                sseEmitter.send(BaseResponse.error(1003, "连接超时"));
+            } catch (IOException e) {
+                // 忽略超时发送错误
+            }
+            sseEmitter.complete();
+        });
+
         sseEmitter.onCompletion(() -> {
             // 在此处添加资源释放逻辑，如取消订阅、清理会话等
         });
@@ -124,12 +156,16 @@ public class ChatController {
      *
      * @param message 用户输入的报告生成指令
      * @param chatId  聊天会话唯一标识
-     * @return 包含结构化报告的 ResponseEntity
+     * @return 包含结构化报告的统一响应对象
      */
     @GetMapping("/chat/report")
-    public ResponseEntity<ReportVO> doChatReport(@RequestParam String message, @RequestParam String chatId) {
-        ReportVO reportVO = chatService.doChatWithStructuredOutput(message, chatId);
-        return ResponseEntity.ok(reportVO);
+    public BaseResponse<ReportVO> doChatReport(@RequestParam String message, @RequestParam String chatId) {
+        try {
+            ReportVO reportVO = chatService.doChatWithStructuredOutput(message, chatId);
+            return BaseResponse.success(reportVO, "报告生成成功");
+        } catch (Exception e) {
+            return BaseResponse.businessError("报告生成失败：" + e.getMessage());
+        }
     }
 
     /**
@@ -141,10 +177,15 @@ public class ChatController {
      * @return 包装为 ServerSentEvent 的工具调用结果流
      */
     @GetMapping(value = "/chat/tools", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<String>> doChatWithTools(@RequestParam String message, @RequestParam String chatId) {
+    public Flux<ServerSentEvent<BaseResponse<String>>> doChatWithTools(
+            @RequestParam String message,
+            @RequestParam String chatId) {
         return chatService.doChatByStreamWithTool(message, chatId)
-                .map(chunk -> ServerSentEvent.<String>builder()
-                        .data(chunk)
+                .map(chunk -> ServerSentEvent.<BaseResponse<String>>builder()
+                        .data(BaseResponse.success(chunk))
+                        .build())
+                .onErrorReturn(ServerSentEvent.<BaseResponse<String>>builder()
+                        .data(BaseResponse.businessError("工具调用流式响应异常"))
                         .build());
     }
 
@@ -156,11 +197,16 @@ public class ChatController {
      * @param chatId  聊天会话唯一标识
      * @return 包装为 ServerSentEvent 的工具调用+回调结果流
      */
-    @GetMapping(value = "/chat/tools/callback", produces = MediaType.TEXT_EVENT_STREAM_VALUE)  // 补充 produces 声明
-    public Flux<ServerSentEvent<String>> doChatWithToolsAndCallback(@RequestParam String message, @RequestParam String chatId) {
+    @GetMapping(value = "/chat/tools/callback", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<BaseResponse<String>>> doChatWithToolsAndCallback(
+            @RequestParam String message,
+            @RequestParam String chatId) {
         return chatService.doChatByStreamWithToolAndCallback(message, chatId)
-                .map(chunk -> ServerSentEvent.<String>builder()
-                        .data(chunk)
+                .map(chunk -> ServerSentEvent.<BaseResponse<String>>builder()
+                        .data(BaseResponse.success(chunk))
+                        .build())
+                .onErrorReturn(ServerSentEvent.<BaseResponse<String>>builder()
+                        .data(BaseResponse.businessError("工具调用回调流式响应异常"))
                         .build());
     }
 }
