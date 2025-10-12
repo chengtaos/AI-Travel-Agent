@@ -3,6 +3,7 @@ package com.ct.ai.agent.agent;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatOptions;
+import com.ct.ai.agent.agent.property.ToolCallProperties;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,9 @@ import org.springframework.ai.tool.ToolCallback;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 /**
@@ -45,6 +49,8 @@ public class ToolCallAgent extends ReActAgent {
     // 大模型聊天配置（禁用Spring AI内置工具调用，自主维护上下文）
     private final ChatOptions chatOptions;
 
+    private final ToolCallProperties toolCallProperties;
+
     // 工具调用状态跟踪（避免连续失败导致死循环）
     private boolean lastToolCallSuccess = true; // 上一次工具调用是否成功
     private int consecutiveFailures = 0; // 连续失败次数
@@ -56,9 +62,10 @@ public class ToolCallAgent extends ReActAgent {
      *
      * @param availableTools 智能体可调用的工具数组
      */
-    public ToolCallAgent(ToolCallback[] availableTools) {
+    public ToolCallAgent(ToolCallback[] availableTools, ToolCallProperties toolCallProperties) {
         super();
         this.availableTools = availableTools;
+        this.toolCallProperties = toolCallProperties;
         this.toolCallingManager = ToolCallingManager.builder().build(); // 初始化工具调用管理器
         // 配置大模型：禁用内置工具执行，自主控制工具调用流程
         this.chatOptions = DashScopeChatOptions.builder()
@@ -79,7 +86,7 @@ public class ToolCallAgent extends ReActAgent {
     @Override
     public boolean think() {
         // 1. 检查连续失败次数：超过阈值则终止执行，避免资源浪费
-        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+        if (consecutiveFailures >= toolCallProperties.getMaxConsecutiveFailures()) {
             log.warn("[工具调用智能体: {}] 工具调用连续失败{}次，已达阈值，终止执行",
                     getName(), consecutiveFailures);
             setState(AgentState.ERROR);
@@ -142,7 +149,6 @@ public class ToolCallAgent extends ReActAgent {
      */
     @Override
     public String act() {
-        // 1. 校验工具调用响应：无响应则无需执行
         if (toolCallChatResponse == null || !toolCallChatResponse.hasToolCalls()) {
             log.warn("[工具调用智能体: {}] 无待执行的工具调用", getName());
             return "无需执行工具调用";
@@ -150,52 +156,82 @@ public class ToolCallAgent extends ReActAgent {
 
         try {
             log.debug("[工具调用智能体: {}] 行动阶段 - 开始执行工具调用", getName());
-
-            // 2. 构建工具调用请求：携带会话上下文
             Prompt prompt = new Prompt(getMessageList(), this.chatOptions);
-            // 3. 执行工具调用（通过工具管理器）
-            ToolExecutionResult toolExecutionResult = toolCallingManager
-                    .executeToolCalls(prompt, toolCallChatResponse);
 
-            // 4. 更新会话上下文：将工具调用结果加入历史消息
+            // 使用CompletableFuture实现超时控制
+            ToolExecutionResult toolExecutionResult = CompletableFuture.supplyAsync(() ->
+                    toolCallingManager.executeToolCalls(prompt, toolCallChatResponse)
+            ).get(toolCallProperties.getTimeoutMs(), TimeUnit.MILLISECONDS); // 从配置获取超时时间
+
+            // 更新会话上下文
             setMessageList(toolExecutionResult.conversationHistory());
 
-            // 5. 提取最后一条工具响应消息（判断调用结果）
+            // 处理工具响应（原有逻辑）
             Optional<ToolResponseMessage> toolResponseOpt = getLastToolResponseMessage(toolExecutionResult);
             if (toolResponseOpt.isEmpty()) {
-                // 无工具响应：标记失败，增加失败次数
                 lastToolCallSuccess = false;
                 consecutiveFailures++;
-                return "工具调用失败：未获取到工具响应";
+                return handleFailure(); // 统一失败处理
             }
 
+            // 工具调用成功处理
+            lastToolCallSuccess = true;
+            consecutiveFailures = 0;
             ToolResponseMessage toolResponseMessage = toolResponseOpt.get();
 
-            // 6. 检查是否调用"终止工具"：若是则标记任务完成
             if (isTerminateToolCalled(toolResponseMessage)) {
                 setState(AgentState.FINISHED);
                 log.info("[工具调用智能体: {}] 检测到终止工具调用，任务执行完成", getName());
             }
 
-            // 7. 工具调用成功：重置失败计数器
-            lastToolCallSuccess = true;
-            consecutiveFailures = 0;
-
-            // 8. 格式化工具调用结果（便于前端展示）
             String formattedResult = formatToolResults(toolResponseMessage);
             log.info("[工具调用智能体: {}] 工具调用结果：{}", getName(), formattedResult);
-
             return formattedResult;
 
-        } catch (Exception e) {
-            // 行动阶段异常处理：标记失败，增加失败次数
+        } catch (TimeoutException e) { // 捕获超时异常
+            log.error("[工具调用智能体: {}] 工具调用超时（{}ms）", getName(), toolCallProperties.getTimeoutMs(), e);
             lastToolCallSuccess = false;
             consecutiveFailures++;
+            return handleFailure();
+        } catch (Exception e) { // 其他异常
             log.error("[工具调用智能体: {}] 工具调用执行异常", getName(), e);
-            return "工具调用失败：" + e.getMessage();
+            lastToolCallSuccess = false;
+            consecutiveFailures++;
+            return handleFailure();
         }
     }
 
+    /**
+     * 工具调用失败处理（包含降级策略）
+     */
+    private String handleFailure() {
+        // 检查是否达到最大连续失败次数
+        if (consecutiveFailures >= toolCallProperties.getMaxConsecutiveFailures()) {
+            log.warn("[工具调用智能体: {}] 连续失败{}次，触发降级策略", getName(), consecutiveFailures);
+
+            // 根据配置决定降级行为
+            if (toolCallProperties.isFallbackToCache()) {
+                String cachedResult = getCachedResult();
+                return cachedResult != null ?
+                        "当前服务繁忙，返回缓存结果：" + cachedResult :
+                        "当前服务繁忙，暂无缓存结果，请稍后再试";
+            } else {
+                return "服务暂时无法使用，请稍后重试";
+            }
+        } else {
+            return "工具调用失败，已尝试" + consecutiveFailures + "次（最多" +
+                    toolCallProperties.getMaxConsecutiveFailures() + "次）";
+        }
+    }
+
+    /**
+     * TODO 获取缓存结果
+     */
+    private String getCachedResult() {
+        // 实际项目中可通过Redis、本地缓存等方式实现
+        // 仅作示例返回null
+        return null;
+    }
 
     /**
      * 追加下一步引导提示（如有）到会话上下文

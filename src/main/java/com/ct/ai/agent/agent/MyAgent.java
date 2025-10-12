@@ -1,5 +1,6 @@
 package com.ct.ai.agent.agent;
 
+import com.ct.ai.agent.agent.property.ToolCallProperties;
 import com.ct.ai.agent.llm.advisor.LoggerAdvisor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -54,11 +55,13 @@ public class MyAgent extends ToolCallAgent {
      * 构造函数：初始化MyAgent的核心配置
      * 注入依赖（可用工具、大模型），设置智能体基础属性
      *
-     * @param allTools 所有可用工具（通过@Qualifier指定注入"allTools"标识的工具数组）
+     * @param allTools           所有可用工具（通过@Qualifier指定注入"allTools"标识的工具数组）
      * @param dashscopeChatModel 大语言模型（如DashScope提供的LLM，智能体的"大脑"）
      */
-    public MyAgent(@Qualifier("allTools") ToolCallback[] allTools, ChatModel dashscopeChatModel) {
-        super(allTools); // 调用父类构造函数，传入可用工具列表
+    public MyAgent(@Qualifier("allTools") ToolCallback[] allTools,
+                   ChatModel dashscopeChatModel,
+                   ToolCallProperties toolCallProperties) {
+        super(allTools, toolCallProperties); // 调用父类构造函数，传入可用工具列表
 
         try {
             // 1. 设置智能体基础属性

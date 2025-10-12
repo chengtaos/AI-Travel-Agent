@@ -111,10 +111,9 @@ logging:
     org.postgresql: WARN               # PostgreSQL驱动日志级别（只打印警告及以上，减少噪音）
 
 
-# ==============================================================================
-# 备注：
-# 1. 敏感信息（如API密钥、数据库密码）建议通过环境变量注入（如 ${ai.dashscope.api-key}），
-#    避免硬编码到配置文件，防止泄露。
-# 2. 生产环境需补充：Redis密码、PostgreSQL密码、DashScope API密钥的环境变量配置。
-# 3. 若不再使用 `vector-store.strategy`（原向量库策略），可删除该配置（与 rag.default-strategy 语义重叠）。
-# ==============================================================================
+# 工具调用超时和降级参数
+agent:
+  tool:
+    timeout-ms: 20000  # 超时时间20秒
+    max-consecutive-failures: 2  # 连续失败2次则降级
+    fallback-to-cache: true
