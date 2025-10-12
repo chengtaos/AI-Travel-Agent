@@ -1,4 +1,4 @@
-package com.ct.ai.agent.vo;
+package com.ct.ai.agent.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -12,7 +12,7 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 @Schema(description = "智能体请求参数")
-public class AgentRequestVO {
+public class AgentRequestDTO {
 
     /**
      * 用户提示词

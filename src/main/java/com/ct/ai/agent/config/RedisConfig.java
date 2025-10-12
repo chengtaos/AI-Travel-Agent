@@ -1,6 +1,6 @@
 package com.ct.ai.agent.config;
 
-import com.ct.ai.agent.util.MessageRedisSerializer;
+import com.ct.ai.agent.util.MyRedisSerializer;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -8,11 +8,6 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
-/**
- * Redis 配置类
- * * 配置 RedisTemplate，指定 key 和 value 的序列化方式
- * * 使用自定义的 MessageRedisSerializer 来序列化 Message 对象
- */
 @Configuration
 public class RedisConfig {
 
@@ -21,14 +16,26 @@ public class RedisConfig {
         RedisTemplate<String, Message> template = new RedisTemplate<>();
         template.setConnectionFactory(factory);
 
-        // 使用String序列化器作为key的序列化方式
         template.setKeySerializer(new StringRedisSerializer());
-        // 使用自定义的Message序列化器作为value的序列化方式
-        template.setValueSerializer(new MessageRedisSerializer());
+        template.setValueSerializer(new MyRedisSerializer<>(Message.class));
 
-        // 设置hash类型的key和value序列化方式
         template.setHashKeySerializer(new StringRedisSerializer());
-        template.setHashValueSerializer(new MessageRedisSerializer());
+        template.setHashValueSerializer(new MyRedisSerializer<>(Message.class));
+
+        template.afterPropertiesSet();
+        return template;
+    }
+
+    @Bean
+    public RedisTemplate<String, Object> userRedisTemplate(RedisConnectionFactory factory) {
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
+        template.setConnectionFactory(factory);
+
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new MyRedisSerializer<>(Object.class)); // 通用 Object 序列化
+
+        template.setHashKeySerializer(new StringRedisSerializer());
+        template.setHashValueSerializer(new MyRedisSerializer<>(Object.class));
 
         template.afterPropertiesSet();
         return template;

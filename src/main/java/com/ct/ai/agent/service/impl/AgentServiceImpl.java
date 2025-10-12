@@ -3,10 +3,10 @@ package com.ct.ai.agent.service.impl;
 import com.ct.ai.agent.agent.AgentState;
 import com.ct.ai.agent.agent.MyAgent;
 import com.ct.ai.agent.agent.factory.AgentFactory;
+import com.ct.ai.agent.dto.AgentRequestDTO;
+import com.ct.ai.agent.dto.AgentResponseDTO;
 import com.ct.ai.agent.dto.ChatMessageDTO;
 import com.ct.ai.agent.service.AgentService;
-import com.ct.ai.agent.vo.AgentRequestVO;
-import com.ct.ai.agent.vo.AgentResponseVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -72,7 +72,7 @@ public class AgentServiceImpl implements AgentService {
      * 可复用会话ID（传入则复用已有智能体，无则生成新ID），支持长对话
      */
     @Override
-    public AgentResponseVO executeAdvancedTask(AgentRequestVO request) {
+    public AgentResponseDTO executeAdvancedTask(AgentRequestDTO request) {
         log.info("【高级同步】执行智能体任务，请求参数：{}", request);
 
         // 1. 处理会话ID：优先使用请求中的ID，无则生成新ID（支持会话复用）
@@ -93,7 +93,7 @@ public class AgentServiceImpl implements AgentService {
             saveExecutionHistory(request, result, sessionId);
 
             // 5. 构建响应
-            AgentResponseVO response = AgentResponseVO.success(
+            AgentResponseDTO response = AgentResponseDTO.success(
                     result,
                     myAgent.getState(),
                     sessionId,
@@ -105,7 +105,7 @@ public class AgentServiceImpl implements AgentService {
 
         } catch (Exception e) {
             log.error("【高级同步】任务执行失败，会话ID：{}", sessionId, e);
-            return AgentResponseVO.error("执行失败：" + e.getMessage(),
+            return AgentResponseDTO.error("执行失败：" + e.getMessage(),
                     myAgent != null ? myAgent.getState() : AgentState.ERROR);
 
         }
@@ -160,7 +160,7 @@ public class AgentServiceImpl implements AgentService {
      * 可复用会话ID（长对话场景），支持自定义系统提示、最大步骤数
      */
     @Override
-    public SseEmitter executeAdvancedTaskStream(AgentRequestVO request) {
+    public SseEmitter executeAdvancedTaskStream(AgentRequestDTO request) {
         log.info("【高级流式】执行智能体任务，请求参数：{}", request);
 
         // 1. 处理会话ID：优先复用请求中的ID，无则生成新ID
@@ -205,14 +205,14 @@ public class AgentServiceImpl implements AgentService {
      * 查询智能体当前状态（支持指定会话ID，无则返回所有活跃会话状态）
      */
     @Override
-    public AgentResponseVO getAgentStatus(String sessionId) {
+    public AgentResponseDTO getAgentStatus(String sessionId) {
         Map<String, Object> statusMap = new HashMap<>();
 
         if (sessionId != null && !sessionId.isEmpty()) {
             // 1. 查询指定会话的智能体状态
             MyAgent myAgent = activeAgents.get(sessionId);
             if (myAgent == null) {
-                return AgentResponseVO.warning("指定会话ID不存在或已关闭：" + sessionId);
+                return AgentResponseDTO.warning("指定会话ID不存在或已关闭：" + sessionId);
             }
 
             // 封装单个会话状态
@@ -232,7 +232,7 @@ public class AgentServiceImpl implements AgentService {
         }
 
         // 构建状态响应
-        return new AgentResponseVO()
+        return new AgentResponseDTO()
                 .setStatus("success")
                 .setResult(statusMap.toString())
                 .setAgentState(activeAgents.isEmpty() ?
@@ -244,20 +244,20 @@ public class AgentServiceImpl implements AgentService {
      * 重置智能体状态（支持指定会话ID）
      */
     @Override
-    public AgentResponseVO resetAgent(String sessionId) {
+    public AgentResponseDTO resetAgent(String sessionId) {
         if (sessionId == null || !activeAgents.containsKey(sessionId)) {
-            return AgentResponseVO.warning("指定会话ID不存在或已关闭：" + sessionId);
+            return AgentResponseDTO.warning("指定会话ID不存在或已关闭：" + sessionId);
         }
 
         try {
             MyAgent myAgent = activeAgents.get(sessionId);
             myAgent.reset();
             log.info("【重置智能体】会话ID：{}，重置完成，当前状态：{}", sessionId, myAgent.getState());
-            return AgentResponseVO.success("智能体已重置", myAgent.getState(), sessionId);
+            return AgentResponseDTO.success("智能体已重置", myAgent.getState(), sessionId);
 
         } catch (Exception e) {
             log.error("【重置智能体】失败，会话ID：{}", sessionId, e);
-            return AgentResponseVO.error("重置失败: " + e.getMessage(), AgentState.ERROR);
+            return AgentResponseDTO.error("重置失败: " + e.getMessage(), AgentState.ERROR);
         }
     }
 
@@ -266,9 +266,9 @@ public class AgentServiceImpl implements AgentService {
      * 手动关闭指定会话的流式连接
      */
     @Override
-    public AgentResponseVO closeStream(String sessionId) {
+    public AgentResponseDTO closeStream(String sessionId) {
         if (!activeEmitters.containsKey(sessionId)) {
-            return AgentResponseVO.warning("指定的会话ID不存在或已关闭：" + sessionId);
+            return AgentResponseDTO.warning("指定的会话ID不存在或已关闭：" + sessionId);
         }
 
         SseEmitter emitter = activeEmitters.get(sessionId);
@@ -283,11 +283,11 @@ public class AgentServiceImpl implements AgentService {
             activeEmitters.remove(sessionId);
             activeAgents.remove(sessionId);
             log.info("【关闭流式连接】成功，会话ID：{}", sessionId);
-            return AgentResponseVO.success("流式连接已关闭", AgentState.IDLE, sessionId);
+            return AgentResponseDTO.success("流式连接已关闭", AgentState.IDLE, sessionId);
 
         } catch (IOException e) {
             log.error("【关闭流式连接】失败，会话ID：{}", sessionId, e);
-            return AgentResponseVO.error("关闭连接失败: " + e.getMessage(), AgentState.ERROR);
+            return AgentResponseDTO.error("关闭连接失败: " + e.getMessage(), AgentState.ERROR);
         }
     }
 
@@ -323,7 +323,7 @@ public class AgentServiceImpl implements AgentService {
     /**
      * 应用自定义参数到智能体（从请求中提取配置）
      */
-    private void applyCustomParameters(AgentRequestVO request, MyAgent myAgent) {
+    private void applyCustomParameters(AgentRequestDTO request, MyAgent myAgent) {
         // 设置最大步骤数（需大于0才生效）
         if (request.getMaxSteps() != null && request.getMaxSteps() > 0) {
             myAgent.setMaxSteps(request.getMaxSteps());
@@ -342,7 +342,7 @@ public class AgentServiceImpl implements AgentService {
     /**
      * 保存高级任务执行历史（关联会话ID）
      */
-    private void saveExecutionHistory(AgentRequestVO request, String result, String sessionId) {
+    private void saveExecutionHistory(AgentRequestDTO request, String result, String sessionId) {
         ChatMessageDTO messageDTO = new ChatMessageDTO()
                 .setSessionId(sessionId)
                 .setRole("assistant") // 角色：助手（智能体回复）
@@ -394,14 +394,14 @@ public class AgentServiceImpl implements AgentService {
     }
 
     @Override
-    public AgentResponseVO getAgentStatus() {
+    public AgentResponseDTO getAgentStatus() {
         // 兼容原有无参方法，返回所有活跃会话汇总状态
         return getAgentStatus(null);
     }
 
     @Override
-    public AgentResponseVO resetAgent() {
+    public AgentResponseDTO resetAgent() {
         // 兼容原有无参方法：无指定会话时，提示需传入会话ID
-        return AgentResponseVO.warning("请指定会话ID（sessionId）以重置对应智能体");
+        return AgentResponseDTO.warning("请指定会话ID（sessionId）以重置对应智能体");
     }
 }

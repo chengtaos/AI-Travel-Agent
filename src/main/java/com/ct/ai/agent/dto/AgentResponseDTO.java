@@ -1,4 +1,4 @@
-package com.ct.ai.agent.vo;
+package com.ct.ai.agent.dto;
 
 import com.ct.ai.agent.agent.AgentState;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Accessors(chain = true)
 @Schema(description = "智能体响应结果")
-public class AgentResponseVO {
+public class AgentResponseDTO {
 
     /**
      * 响应状态：success-成功，error-错误，warning-警告
@@ -67,8 +67,8 @@ public class AgentResponseVO {
      * @param sessionId 会话ID
      * @return 响应对象
      */
-    public static AgentResponseVO success(String result, AgentState state, String sessionId) {
-        return new AgentResponseVO()
+    public static AgentResponseDTO success(String result, AgentState state, String sessionId) {
+        return new AgentResponseDTO()
                 .setStatus("success")
                 .setResult(result)
                 .setAgentState(state != null ? state.toString() : "UNKNOWN")
@@ -84,7 +84,7 @@ public class AgentResponseVO {
      * @param executionTime 执行时间（毫秒）
      * @return 响应对象
      */
-    public static AgentResponseVO success(String result, AgentState state, String sessionId, long executionTime) {
+    public static AgentResponseDTO success(String result, AgentState state, String sessionId, long executionTime) {
         return success(result, state, sessionId)
                 .setExecutionTime(executionTime);
     }
@@ -96,8 +96,8 @@ public class AgentResponseVO {
      * @param state 智能体状态
      * @return 响应对象
      */
-    public static AgentResponseVO error(String message, AgentState state) {
-        return new AgentResponseVO()
+    public static AgentResponseDTO error(String message, AgentState state) {
+        return new AgentResponseDTO()
                 .setStatus("error")
                 .setMessage(message)
                 .setAgentState(state != null ? state.toString() : "ERROR");
@@ -109,8 +109,8 @@ public class AgentResponseVO {
      * @param message 警告信息
      * @return 响应对象
      */
-    public static AgentResponseVO warning(String message) {
-        return new AgentResponseVO()
+    public static AgentResponseDTO warning(String message) {
+        return new AgentResponseDTO()
                 .setStatus("warn")
                 .setMessage(message);
     }

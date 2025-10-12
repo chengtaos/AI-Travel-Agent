@@ -1,8 +1,8 @@
 package com.ct.ai.agent.controller;
 
 import com.ct.ai.agent.service.AgentService;
-import com.ct.ai.agent.vo.AgentRequestVO;
-import com.ct.ai.agent.vo.AgentResponseVO;
+import com.ct.ai.agent.dto.AgentRequestDTO;
+import com.ct.ai.agent.dto.AgentResponseDTO;
 import com.ct.ai.agent.vo.BaseResponse;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -35,7 +35,7 @@ public class AgentController {
      * 适用场景：仅需传入用户输入内容，无需额外配置（如“回答问题”“生成简短文本”）
      */
     @PostMapping("/execute")
-    public ResponseEntity<BaseResponse<AgentResponseVO>> executeTask(
+    public ResponseEntity<BaseResponse<AgentResponseDTO>> executeTask(
             @RequestParam @NotBlank(message = "用户请求内容不能为空") String prompt,
             @RequestParam(required = false) String sessionId) {
         String finalSessionId = sessionId != null ? sessionId.trim() : UUID.randomUUID().toString();
@@ -44,7 +44,7 @@ public class AgentController {
 
         try {
             String result = agentService.executeTask(prompt.trim(), sessionId);
-            AgentResponseVO responseData = new AgentResponseVO()
+            AgentResponseDTO responseData = new AgentResponseDTO()
                     .setStatus("success")
                     .setResult(result)
                     .setMessage("处理完成")
@@ -64,7 +64,7 @@ public class AgentController {
      * 适用场景：需自定义智能体行为（如指定角色、携带会话上下文、开启工具调用）
      */
     @PostMapping("/execute/advanced")
-    public ResponseEntity<BaseResponse<AgentResponseVO>> executeAdvancedTask(@Valid @RequestBody AgentRequestVO request) {
+    public ResponseEntity<BaseResponse<AgentResponseDTO>> executeAdvancedTask(@Valid @RequestBody AgentRequestDTO request) {
         // 补全会话ID：请求中无则生成新ID
         if (request.getSessionId() == null) {
             request.setSessionId(UUID.randomUUID().toString());
@@ -72,7 +72,7 @@ public class AgentController {
         log.info("【高级同步接口】接收到请求，参数：{}", request);
 
         try {
-            AgentResponseVO response = agentService.executeAdvancedTask(request);
+            AgentResponseDTO response = agentService.executeAdvancedTask(request);
             response.setSessionId(request.getSessionId());
             return ResponseEntity.ok(BaseResponse.success(response));
 
@@ -121,7 +121,7 @@ public class AgentController {
      * 适用场景：需定制智能体行为的耗时任务（如带会话上下文的长对话）
      */
     @PostMapping(value = "/execute/stream/advance", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter executeAdvancedTaskStream(@Valid @RequestBody AgentRequestVO request) {
+    public SseEmitter executeAdvancedTaskStream(@Valid @RequestBody AgentRequestDTO request) {
         // 补全会话ID：确保每个流式连接有唯一标识
         if (request.getSessionId() == null) {
             request.setSessionId(UUID.randomUUID().toString());
@@ -153,12 +153,12 @@ public class AgentController {
      * 支持两种模式：1. 传sessionId查询指定会话状态；2. 不传查询所有活跃会话汇总
      */
     @GetMapping("/status")
-    public ResponseEntity<BaseResponse<AgentResponseVO>> getAgentStatus(
+    public ResponseEntity<BaseResponse<AgentResponseDTO>> getAgentStatus(
             @RequestParam(required = false) String sessionId) {
 
         log.info("【状态查询接口】接收到请求，查询sessionId：{}", sessionId);
         try {
-            AgentResponseVO statusResponse;
+            AgentResponseDTO statusResponse;
             if (sessionId != null && !sessionId.trim().isEmpty()) {
                 // 模式1：查询指定会话状态
                 statusResponse = agentService.getAgentStatus(sessionId.trim());
@@ -181,18 +181,18 @@ public class AgentController {
      * 支持两种模式：1. 传sessionId重置指定会话；2. 不传提示需指定会话（避免误操作全局）
      */
     @PostMapping("/reset")
-    public ResponseEntity<BaseResponse<AgentResponseVO>> resetAgent(
+    public ResponseEntity<BaseResponse<AgentResponseDTO>> resetAgent(
             @RequestParam(required = false) String sessionId) {
 
         log.info("【重置接口】接收到请求，重置sessionId：{}", sessionId);
         try {
-            AgentResponseVO resetResponse;
+            AgentResponseDTO resetResponse;
             if (sessionId != null && !sessionId.trim().isEmpty()) {
                 // 模式1：重置指定会话
                 resetResponse = agentService.resetAgent(sessionId.trim());
             } else {
                 // 模式2：未传会话ID，返回提示
-                resetResponse = new AgentResponseVO()
+                resetResponse = new AgentResponseDTO()
                         .setStatus("warning")
                         .setResult(null)
                         .setMessage("请传入sessionId，指定需重置的会话");
@@ -211,14 +211,14 @@ public class AgentController {
      * 流式连接关闭接口：主动关闭指定会话的流式连接
      */
     @PostMapping("/stream/close/{sessionId}")
-    public ResponseEntity<BaseResponse<AgentResponseVO>> closeStream(
+    public ResponseEntity<BaseResponse<AgentResponseDTO>> closeStream(
             @PathVariable @NotBlank(message = "会话ID不能为空") String sessionId) {
 
         String finalSessionId = sessionId.trim();
         log.info("【关闭流式连接接口】接收到请求，sessionId：{}", finalSessionId);
 
         try {
-            AgentResponseVO closeResponse = agentService.closeStream(finalSessionId);
+            AgentResponseDTO closeResponse = agentService.closeStream(finalSessionId);
             return ResponseEntity.ok(BaseResponse.success(closeResponse));
 
         } catch (Exception e) {

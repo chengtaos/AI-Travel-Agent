@@ -1,8 +1,10 @@
 package com.ct.ai.agent.service;
 
+import com.ct.ai.agent.dto.AgentRequestDTO;
+import com.ct.ai.agent.dto.AgentResponseDTO;
 import com.ct.ai.agent.dto.ChatMessageDTO;
-import com.ct.ai.agent.vo.AgentRequestVO;
-import com.ct.ai.agent.vo.AgentResponseVO;
+import com.ct.ai.agent.dto.AgentRequestDTO;
+import com.ct.ai.agent.dto.AgentResponseDTO;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
@@ -25,7 +27,7 @@ public interface AgentService {
      * @param request 智能体请求对象
      * @return 执行结果
      */
-    AgentResponseVO executeAdvancedTask(AgentRequestVO request);
+    AgentResponseDTO executeAdvancedTask(AgentRequestDTO request);
 
     /**
      * 执行智能体任务（流式模式）
@@ -41,25 +43,25 @@ public interface AgentService {
      * @param request 智能体请求对象
      * @return SSE事件发射器
      */
-    SseEmitter executeAdvancedTaskStream(AgentRequestVO request);
+    SseEmitter executeAdvancedTaskStream(AgentRequestDTO request);
 
     /**
      * 获取智能体状态
      *
      * @return 状态信息
      */
-    AgentResponseVO getAgentStatus();
+    AgentResponseDTO getAgentStatus();
 
     /**
      * 重置智能体状态
      *
      * @return 操作结果
      */
-    AgentResponseVO resetAgent();
+    AgentResponseDTO resetAgent();
 
-    AgentResponseVO getAgentStatus(String sessionId);
+    AgentResponseDTO getAgentStatus(String sessionId);
 
-    AgentResponseVO resetAgent(String sessionId);
+    AgentResponseDTO resetAgent(String sessionId);
 
     /**
      * 关闭流式连接
@@ -67,7 +69,7 @@ public interface AgentService {
      * @param sessionId 会话ID
      * @return 操作结果
      */
-    AgentResponseVO closeStream(String sessionId);
+    AgentResponseDTO closeStream(String sessionId);
 
     /**
      * 保存智能体执行历史
