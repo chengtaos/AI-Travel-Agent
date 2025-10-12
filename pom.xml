@@ -37,6 +37,7 @@
         <ai.alibaba.version>1.0.0.2</ai.alibaba.version>
         <dashscope.version>2.20.2</dashscope.version>
         <json.schema.version>4.38.0</json.schema.version>
+        <pdf.version>9.1.0</pdf.version>
     </properties>
 
 
@@ -130,6 +131,12 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-markdown-document-reader</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>itext-core</artifactId>
+            <version>${pdf.version}</version>
+            <type>pom</type>
         </dependency>
     </dependencies>
 
