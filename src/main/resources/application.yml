@@ -1,77 +1,120 @@
+# ==============================================================================
+# 1. 服务基础配置（端口、上下文、应用名）
+# ==============================================================================
 server:
-  port: 8082
+  port: 8082                          # 服务端口
   servlet:
-    context-path: /api
+    context-path: /api                # 接口统一前缀（所有接口需加 /api，如 /api/rag/chat）
 
 spring:
   application:
-    name: ai_travel_agent
+    name: ai_travel_agent             # 应用名（用于注册中心、日志标识等）
 
-  # Redis
+
+  # ==============================================================================
+  # 2. 数据存储配置（Redis、PostgreSQL）
+  # ==============================================================================
+  # 2.1 Redis（用于聊天记忆、缓存等）
   data:
     redis:
-      host: localhost
-      port: 6379
-      database: 1
+      host: localhost                 # Redis地址（生产环境建议用集群地址）
+      port: 6379                      # Redis端口
+      database: 1                     # Redis数据库索引（避免与其他应用冲突）
+      # 可选：添加Redis密码（生产环境必须配置）
+      # password: ${redis.password:your-redis-password}
 
-  # mysql
+  # 2.2 PostgreSQL（用于PgVector向量库、业务数据存储）
   datasource:
-    url: jdbc:postgresql://127.0.0.1:5432/postgres
-    username: root
-    password: root
-    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://127.0.0.1:5432/postgres  # 数据库连接地址（库名：postgres）
+    username: root                    # 数据库账号（注意：PostgreSQL默认账号是 postgres，需确认是否修改过）
+    password: root                    # 数据库密码（生产环境建议用环境变量注入，避免硬编码）
+    driver-class-name: org.postgresql.Driver  # PostgreSQL驱动（Spring Boot 2.7+ 可省略，自动识别）
 
-  # Spring AI
+
+  # ==============================================================================
+  # 3. Spring AI 核心配置（大模型、向量库、RAG）
+  # ==============================================================================
   ai:
+    # 3.1 阿里云DashScope配置（大模型+云知识库）
     dashscope:
-      api-key: ${ai.dashscope.api-key}
+      api-key: ${ai.dashscope.api-key}  # 从环境变量注入API密钥（安全起见，不硬编码）
       chat:
         options:
-          model: qwen-plus
+          model: qwen-plus             # 默认使用的DashScope大模型（通义千问Plus）
+
+    # 3.2 ChatClient配置（禁止自动装配，支持手动实例化多模型）
     chat:
       client:
-        enabled: false #禁止ChatClient.Builder的自动装配，可自动实例化多个模型
+        enabled: false                 # 关闭默认ChatClient自动装配，避免与自定义配置冲突
 
-    # 向量数据库配置 (使用 pgvector)
+    # 3.3 PgVector向量库配置（本地向量存储）
     vectorstore:
       pgvector:
-        distance-type: COSINE_DISTANCE
-        dimensions: 1536
-        max-document-batch-size: 10000 # Optional: Maximum number of documents per batch
-        table-name: vector_store
-        index-type: HNSW
+        distance-type: COSINE_DISTANCE # 距离计算方式（余弦距离，适合文本向量）
+        dimensions: 1536               # 向量维度（需与嵌入模型一致，如DashScope text-embedding-v2是1536）
+        max-document-batch-size: 10000 # 文档批量处理大小（优化向量入库性能）
+        table-name: vector_store       # PgVector向量表名（自动创建，无需手动建表）
+        index-type: HNSW               # 向量索引类型（HNSW适合高维向量快速检索）
 
+
+# ==============================================================================
+# 4. RAG 检索增强配置（策略、多知识库参数）
+# ==============================================================================
+rag:
+  default-strategy: local-pgvector     # RAG默认检索策略（local-pgvector=本地PgVector；aliyun-dashscope=阿里云云知识库）
+  # 4.1 本地PgVector策略补充参数（与spring.ai.vectorstore.pgvector呼应，避免冗余）
+  local:
+    similarity-threshold: 0.5         # 检索相似度阈值（只保留≥0.5的结果，过滤不相关内容）
+    topK: 3                           # 检索返回的TopK结果数（3~5为宜，平衡准确性和性能）
+  # 4.2 阿里云DashScope云知识库参数
+  aliyun:
+    index-name: xxxx                   # 阿里云知识库索引名（需在DashScope控制台创建，替换为实际索引名）
+
+
+# ==============================================================================
+# 5. 第三方API配置（网页搜索）
+# ==============================================================================
 search:
   api:
-    key: ${search.api.key} # https://www.searchapi.io/ 网页搜索，注册获取API-KEY
+    key: ${search.api.key}             # SearchAPI.io 密钥（用于网页搜索能力，从环境变量注入）
+    # 可选：添加搜索接口超时配置
+    # timeout: 5000                    # 超时时间（毫秒）
 
-# 日志配置
-logging:
-  level:
-    root: INFO
 
-# MVC配置
-mvc:
-  pathmatch:
-    matching-strategy: ANT_PATH_MATCHER
-
-# springdoc-openapi项目配置
+# ==============================================================================
+# 6. 文档与日志配置（Swagger/Knife4j、日志级别）
+# ==============================================================================
+# 6.1 接口文档配置（Knife4j + SpringDoc-OpenAPI）
 springdoc:
   swagger-ui:
-    path: /swagger-ui.html
-    tags-sorter: alpha
-    operations-sorter: alpha
+    path: /swagger-ui.html             # Swagger UI访问地址（/api/swagger-ui.html）
+    tags-sorter: alpha                 # 标签排序（按字母顺序）
+    operations-sorter: alpha           # 接口排序（按字母顺序）
   api-docs:
-    path: /v3/api-docs
+    path: /v3/api-docs                 # OpenAPI文档JSON地址（用于生成客户端代码）
   group-configs:
     - group: 'default'
-      paths-to-match: '/**'
-      packages-to-scan: com.ct.ai.agent.controller
+      paths-to-match: '/**'            # 匹配所有接口
+      packages-to-scan: com.ct.ai.agent.controller  # 扫描的Controller包（确保接口被文档识别）
 
-# knife4j的增强配置
 knife4j:
-  enable: true
+  enable: true                         # 启用Knife4j增强功能（美化文档、调试界面）
   setting:
-    language: zh_cn
+    language: zh_cn                    # 文档语言（中文）
+
+# 6.2 日志配置（控制不同模块的日志级别）
+logging:
+  level:
+    root: INFO                         # 全局日志级别（INFO：常规日志；DEBUG：调试日志）
+    com.ct.ai.agent: DEBUG             # 自定义包日志级别（DEBUG：便于开发调试，生产环境可改为INFO）
+    org.springframework.ai: INFO       # Spring AI相关日志级别（避免过多冗余日志）
+    org.postgresql: WARN               # PostgreSQL驱动日志级别（只打印警告及以上，减少噪音）
 
 
+# ==============================================================================
+# 备注：
+# 1. 敏感信息（如API密钥、数据库密码）建议通过环境变量注入（如 ${ai.dashscope.api-key}），
+#    避免硬编码到配置文件，防止泄露。
+# 2. 生产环境需补充：Redis密码、PostgreSQL密码、DashScope API密钥的环境变量配置。
+# 3. 若不再使用 `vector-store.strategy`（原向量库策略），可删除该配置（与 rag.default-strategy 语义重叠）。
+# ==============================================================================

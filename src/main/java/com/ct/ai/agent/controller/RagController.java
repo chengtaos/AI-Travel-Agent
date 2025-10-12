@@ -19,20 +19,26 @@ public class RagController {
     private RagService ragService;
 
     /**
-     * RAG流式对话接口
-     * 接收用户消息和会话ID，返回流式结果（逐段推送回答，减少用户等待）
+     * RAG流式对话接口（支持指定检索策略）
+     * 接收用户消息、会话ID、检索策略，返回流式SSE结果
      *
      * @param message 用户输入的对话消息（如"介绍AI智能体的核心功能"）
      * @param chatId  会话ID（用于关联多轮对话上下文，避免上下文丢失）
+     * @param strategy 可选：检索策略名称（local-pgvector/aliyun-dashscope，默认用配置的rag.default-strategy）
      * @return 流式响应（ServerSentEvent）：每段回答内容封装为SSE事件
      */
     @GetMapping("/chat") // GET请求路径：/rag/chat
-    public Flux<ServerSentEvent<String>> doChatWithRagQuery(@RequestParam(required = true) String message,
-                                                            @RequestParam(required = true) String chatId) {
+    public Flux<ServerSentEvent<String>> doChatWithRagQuery(
+            @RequestParam(required = true) String message,
+            @RequestParam(required = true) String chatId,
+            @RequestParam(required = false) String strategy) {
 
-        return ragService.doChatWithRagQuery(message, chatId)
+        // 透传参数给Service：若strategy为null，Service会使用默认策略
+        return ragService.doChatWithRagQuery(message, chatId, strategy)
                 .map(chunk -> ServerSentEvent.<String>builder()
-                        .data(chunk)
+                        .data(chunk) // 流式返回的回答片段
+                        .id(String.valueOf(System.currentTimeMillis())) // 给每个事件加唯一ID（便于前端追踪）
+                        .event("answerChunk") // 可选：标记事件类型（前端可按类型处理）
                         .build());
     }
 }
