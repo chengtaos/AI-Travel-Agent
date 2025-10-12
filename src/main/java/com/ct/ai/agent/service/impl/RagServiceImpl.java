@@ -1,5 +1,6 @@
 package com.ct.ai.agent.service.impl;
 
+import com.ct.ai.agent.rag.retriever.QueryRewriter;
 import com.ct.ai.agent.service.RagService;
 import jakarta.annotation.Resource;
 import org.springframework.ai.chat.client.ChatClient;
