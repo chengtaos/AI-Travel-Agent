@@ -57,9 +57,7 @@ public class MyAgent extends ToolCallAgent {
      * @param allTools 所有可用工具（通过@Qualifier指定注入"allTools"标识的工具数组）
      * @param dashscopeChatModel 大语言模型（如DashScope提供的LLM，智能体的"大脑"）
      */
-    public MyAgent(
-            @Qualifier("allTools") ToolCallback[] allTools,
-            ChatModel dashscopeChatModel) {
+    public MyAgent(@Qualifier("allTools") ToolCallback[] allTools, ChatModel dashscopeChatModel) {
         super(allTools); // 调用父类构造函数，传入可用工具列表
 
         try {
@@ -74,7 +72,7 @@ public class MyAgent extends ToolCallAgent {
 
             // 2. 初始化大模型对话客户端（智能体与大模型的交互入口）
             ChatClient chatClient = ChatClient.builder(dashscopeChatModel)
-                    .defaultAdvisors(new LoggerAdvisor()) // 添加日志增强器：记录大模型交互日志（便于问题排查）
+                    .defaultAdvisors(new LoggerAdvisor())
                     .build();
             this.setChatClient(chatClient);
             log.info("MyAgent智能体初始化完成，已具备任务处理能力");

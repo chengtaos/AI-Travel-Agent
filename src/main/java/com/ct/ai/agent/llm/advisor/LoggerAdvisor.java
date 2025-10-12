@@ -9,7 +9,7 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.util.StringUtils;
 
 /**
- * 日志记录顾问
+ * 日志记录
  * 实现 Spring AI 的 BaseAdvisor 接口，用于在 AI 对话链路中记录请求和响应日志
  * 核心作用：跟踪用户输入与 AI 输出，便于调试、问题排查和对话审计
  */

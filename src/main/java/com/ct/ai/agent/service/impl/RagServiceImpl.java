@@ -25,9 +25,8 @@ public class RagServiceImpl implements RagService {
     @Resource
     private QueryRewriter queryRewriter;
 
-    // PgVector向量数据库（存储知识库向量，支持相似性检索）
-    @Resource
-    private VectorStore pgVectorVectorStore;
+    @Resource(name = "vectorStore")
+    private VectorStore vectorStore;
 
 
     /**
@@ -49,7 +48,7 @@ public class RagServiceImpl implements RagService {
                 .user(rewrittenQuery) // 传入改写后的用户查询
                 .advisors(spec -> spec.param(CONVERSATION_ID, chatId)) // 关联会话ID，启用对话记忆
                 // 3. 应用RAG增强：从PgVector向量库检索相关知识
-                .advisors(QuestionAnswerAdvisor.builder(pgVectorVectorStore)
+                .advisors(QuestionAnswerAdvisor.builder(vectorStore)
                         .searchRequest(SearchRequest.builder()
                                 .similarityThreshold(0.5) // 相似度阈值：只取相似度≥0.5的结果
                                 .topK(3) // 取最相关的3条知识

@@ -23,7 +23,7 @@ public class AliCloudAdvisorConfig {
     private String dashScopeApiKey;
 
     /**
-     * 定义阿里云RAG检索增强顾问Bean
+     * 定义阿里云RAG advisor
      * 核心逻辑：创建DashScope知识库检索器，封装为Spring AI的Advisor，供ChatClient调用
      *
      * @return 阿里云RAG增强顾问（Advisor）

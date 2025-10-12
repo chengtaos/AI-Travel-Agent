@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
  * 作用：优化用户原始查询，提升后续知识库检索的准确性
  * 核心逻辑：通过大模型对用户输入进行语义优化、补全或修正，生成更适合检索的查询语句
  */
-@Component // 标记为Spring组件，供RAG服务调用
+@Component
 public class QueryRewriter {
 
     // 查询转换器：基于大模型实现查询改写逻辑
@@ -30,7 +30,7 @@ public class QueryRewriter {
 
         // 初始化查询重写转换器：通过大模型优化查询
         this.queryTransformer = RewriteQueryTransformer.builder()
-                .chatClientBuilder(chatClientBuilder) // 注入大模型客户端
+                .chatClientBuilder(chatClientBuilder)
                 .build();
     }
 
