@@ -30,7 +30,7 @@ public class LoggerAdvisor implements BaseAdvisor {
      * 在用户消息发送给大模型前，记录用户输入内容（已通过前置校验）
      *
      * @param chatClientRequest AI 聊天请求对象（包含用户输入、上下文等信息）
-     * @param advisorChain 顾问链（框架自动处理后续链路，无需手动调用）
+     * @param advisorChain      顾问链（框架自动处理后续链路，无需手动调用）
      * @return 原请求对象（不修改请求内容）
      */
     @Override
@@ -58,7 +58,7 @@ public class LoggerAdvisor implements BaseAdvisor {
      * 在大模型返回结果后，记录 AI 输出内容，便于跟踪对话结果
      *
      * @param chatClientResponse AI 聊天响应对象（包含 AI 输出、元数据等信息）
-     * @param advisorChain 顾问链（框架自动处理后续链路）
+     * @param advisorChain       顾问链（框架自动处理后续链路）
      * @return 原响应对象（不修改响应内容）
      */
     @Override

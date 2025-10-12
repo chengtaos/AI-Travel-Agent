@@ -8,7 +8,6 @@ import com.ct.ai.agent.vo.AgentRequestVO;
 import com.ct.ai.agent.vo.AgentResponseVO;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 

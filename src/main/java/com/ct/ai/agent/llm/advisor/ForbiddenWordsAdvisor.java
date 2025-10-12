@@ -106,7 +106,7 @@ public class ForbiddenWordsAdvisor implements BaseAdvisor {
      * 在用户消息发送给大模型前执行，若包含违禁词则抛出异常中断请求
      *
      * @param chatClientRequest 聊天客户端请求对象（包含用户输入等信息）
-     * @param advisorChain 顾问链（框架自动处理后续链路，无需手动调用）
+     * @param advisorChain      顾问链（框架自动处理后续链路，无需手动调用）
      * @return 校验通过后的请求对象
      * @throws IllegalArgumentException 当输入包含违禁词时抛出
      */
@@ -142,7 +142,7 @@ public class ForbiddenWordsAdvisor implements BaseAdvisor {
      * 因违禁词校验仅需在请求发送前执行，此处直接返回响应对象
      *
      * @param chatClientResponse 聊天客户端响应对象
-     * @param advisorChain 顾问链（框架自动处理后续链路）
+     * @param advisorChain       顾问链（框架自动处理后续链路）
      * @return 原响应对象
      */
     @Override

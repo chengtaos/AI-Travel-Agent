@@ -22,7 +22,9 @@ import java.io.IOException;
  */
 public class MessageRedisSerializer implements RedisSerializer<Message> {
 
-    /** Jackson 核心处理对象，负责 JSON 序列化/反序列化 */
+    /**
+     * Jackson 核心处理对象，负责 JSON 序列化/反序列化
+     */
     private final ObjectMapper objectMapper;
 
     /**
@@ -51,6 +53,7 @@ public class MessageRedisSerializer implements RedisSerializer<Message> {
 
     /**
      * 将 Message 对象序列化为字节数组（存储到 Redis 时使用）
+     *
      * @param message 待序列化的消息对象
      * @return 序列化后的字节数组；若输入为 null 则返回 null
      * @throws SerializationException 序列化失败时抛出（包装原始异常）
@@ -70,6 +73,7 @@ public class MessageRedisSerializer implements RedisSerializer<Message> {
 
     /**
      * 将字节数组反序列化为 Message 对象（从 Redis 读取时使用）
+     *
      * @param bytes 待反序列化的字节数组（JSON 字符串的字节形式）
      * @return 反序列化后的 Message 对象；若输入为空则返回 null
      * @throws SerializationException 反序列化失败时抛出（包装原始异常）
@@ -94,8 +98,9 @@ public class MessageRedisSerializer implements RedisSerializer<Message> {
 
         /**
          * 序列化逻辑：将 Message 转换为 JSON 对象
-         * @param message 待序列化的消息对象
-         * @param gen JSON 生成器（用于构建 JSON 结构）
+         *
+         * @param message     待序列化的消息对象
+         * @param gen         JSON 生成器（用于构建 JSON 结构）
          * @param serializers 序列化上下文（暂未使用）
          * @throws IOException JSON 生成过程中的 IO 异常
          */
@@ -119,7 +124,8 @@ public class MessageRedisSerializer implements RedisSerializer<Message> {
 
         /**
          * 反序列化逻辑：从 JSON 解析出 Message 对象
-         * @param jp JSON 解析器（用于读取 JSON 内容）
+         *
+         * @param jp  JSON 解析器（用于读取 JSON 内容）
          * @param ctx 反序列化上下文（暂未使用）
          * @return 具体的 Message 实现类（UserMessage/AssistantMessage/SystemMessage）
          * @throws IOException JSON 解析过程中的 IO 异常

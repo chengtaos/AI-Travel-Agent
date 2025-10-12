@@ -69,7 +69,7 @@ public interface AgentService {
      * 保存智能体执行历史
      *
      * @param sessionId 会话ID
-     * @param message 消息内容
+     * @param message   消息内容
      * @return 是否保存成功
      */
     boolean saveAgentHistory(String sessionId, ChatMessageDTO message);

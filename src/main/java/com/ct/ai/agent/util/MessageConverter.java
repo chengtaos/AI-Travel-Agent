@@ -2,6 +2,7 @@ package com.ct.ai.agent.util;
 
 import com.ct.ai.agent.dao.ChatMessage;
 import org.springframework.ai.chat.messages.*;
+
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Map;

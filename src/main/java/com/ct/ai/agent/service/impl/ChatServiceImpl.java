@@ -23,7 +23,7 @@ public class ChatServiceImpl implements ChatService {
     public String doChat(String message, String chatId) {
         return chatClient.prompt()
                 .user(message)
-                .advisors(spec -> spec.param(CONVERSATION_ID , chatId))
+                .advisors(spec -> spec.param(CONVERSATION_ID, chatId))
                 .call()
                 .content();
     }

@@ -17,7 +17,7 @@ public class ToolRegister {
         FileOperationTool fileOperationTool = new FileOperationTool();
         PDFGenerationTool pdfGenerationTool = new PDFGenerationTool();
         WebSearchTool webSearchTool = new WebSearchTool(searchApiKey);
-        WebScrapingTool webScrapingTool=new WebScrapingTool();
+        WebScrapingTool webScrapingTool = new WebScrapingTool();
 
         // 使用反射，过滤出所有带有 @Tool 注解的方法，并将它们转换为 ToolCallback 实例。
         return ToolCallbacks.from(
