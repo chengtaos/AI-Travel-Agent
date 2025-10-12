@@ -26,13 +26,12 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class AgentServiceImpl implements AgentService {
 
-    // 注入智能体工厂（通过工厂创建MyAgent实例，解决chatId动态传入问题）
     private final AgentFactory agentFactory;
 
-    // 线程安全的Map：存储"会话ID -> MyAgent实例"，管理活跃智能体（避免重复创建）
+    // 线程安全的Map：存储"会话ID -> MyAgent实例"，管理活跃智能体
     private final Map<String, MyAgent> activeAgents = new ConcurrentHashMap<>();
 
-    // 线程安全的Map：存储活跃的SSE连接（key=会话ID，value=SSE发射器）
+    // 线程安全的Map：存储活跃的SSE连接（key=会话ID，value=SSE emitter）
     private final Map<String, SseEmitter> activeEmitters = new ConcurrentHashMap<>();
 
     // 构造函数注入工厂（Spring自动装配工厂，工厂已管理MyAgent的固定依赖）
@@ -46,18 +45,12 @@ public class AgentServiceImpl implements AgentService {
      * 自动生成会话ID，任务完成后销毁智能体（轻量场景）
      */
     @Override
-    public String executeTask(String prompt) {
-        log.info("【基础同步】执行智能体任务，prompt长度：{}字符", prompt.trim().length());
-
-        // 1. 生成临时会话ID（基础同步场景无需复用会话，任务完成后销毁）
-        String sessionId = UUID.randomUUID().toString();
+    public String executeTask(String prompt, String sessionId) {
+        log.info("【基础同步】执行智能体任务，prompt长度：{}字符，sessionId:{}", prompt.trim().length(), sessionId);
         MyAgent myAgent = null;
-
         try {
-            // 2. 通过工厂创建MyAgent实例（传入动态sessionId=chatId）
             myAgent = agentFactory.createMyAgent(sessionId);
             myAgent.reset(); // 重置智能体状态（避免初始化残留）
-
             // 3. 执行任务并返回结果
             String result = myAgent.run(prompt);
             log.info("【基础同步】任务执行完成，会话ID：{}，智能体状态：{}", sessionId, myAgent.getState());
@@ -66,9 +59,7 @@ public class AgentServiceImpl implements AgentService {
         } catch (Exception e) {
             log.error("【基础同步】任务执行失败，会话ID：{}", sessionId, e);
             throw new RuntimeException("执行失败：" + e.getMessage(), e);
-
         } finally {
-            // 4. 基础场景无需复用会话，任务完成后移除智能体（释放资源）
             if (myAgent != null) {
                 activeAgents.remove(sessionId);
             }
@@ -88,22 +79,20 @@ public class AgentServiceImpl implements AgentService {
         String sessionId = request.getSessionId() != null ?
                 request.getSessionId() : UUID.randomUUID().toString();
         MyAgent myAgent = null;
-
         try {
             // 2. 获取智能体：已有活跃智能体则复用，无则创建新实例
             myAgent = getOrCreateAgent(sessionId);
-            myAgent.reset(); // 重置状态（保留会话上下文，仅重置步骤计数等临时状态）
+            myAgent.reset();
             applyCustomParameters(request, myAgent); // 应用自定义配置（如最大步骤数）
 
             // 3. 执行任务并计算耗时
             long startTime = System.currentTimeMillis();
             String result = myAgent.run(request.getPrompt());
             long executionTime = System.currentTimeMillis() - startTime;
-
-            // 4. 保存执行历史（关联会话ID）
+            // 4. 保存执行历史
             saveExecutionHistory(request, result, sessionId);
 
-            // 5. 构建响应（包含会话ID、耗时等详细信息）
+            // 5. 构建响应
             AgentResponseVO response = AgentResponseVO.success(
                     result,
                     myAgent.getState(),
@@ -128,16 +117,12 @@ public class AgentServiceImpl implements AgentService {
      * 生成唯一会话ID，维护活跃连接，任务完成后自动清理
      */
     @Override
-    public SseEmitter executeTaskStream(String prompt) {
+    public SseEmitter executeTaskStream(String prompt, String sessionId) {
         log.info("【基础流式】执行智能体任务，prompt长度：{}字符", prompt.trim().length());
-
-        // 1. 生成唯一会话ID（流式场景需绑定连接与智能体）
-        String sessionId = UUID.randomUUID().toString();
         MyAgent myAgent = null;
         SseEmitter emitter = null;
-
         try {
-            // 2. 创建智能体与SSE发射器
+            // 2. 创建智能体与SSE
             myAgent = agentFactory.createMyAgent(sessionId);
             myAgent.reset();
             emitter = myAgent.runStream(prompt);
@@ -154,8 +139,7 @@ public class AgentServiceImpl implements AgentService {
 
         } catch (Exception e) {
             log.error("【基础流式】任务初始化失败，会话ID：{}", sessionId, e);
-
-            // 5. 初始化失败时清理资源，返回错误发射器
+            // 5. 初始化失败时清理资源
             cleanResourceOnError(sessionId, emitter);
             SseEmitter errorEmitter = new SseEmitter(5000L);
             try {
@@ -184,7 +168,6 @@ public class AgentServiceImpl implements AgentService {
                 request.getSessionId() : UUID.randomUUID().toString();
         MyAgent myAgent = null;
         SseEmitter emitter = null;
-
         try {
             // 2. 获取智能体（复用或创建）并应用配置
             myAgent = getOrCreateAgent(sessionId);

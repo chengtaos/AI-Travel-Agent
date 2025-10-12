@@ -31,19 +31,18 @@ public class AgentFactory {
     }
 
     /**
-     * 创建MyAgent实例（手动传入动态chatId）
+     * 创建MyAgent实例
      *
-     * @param chatId 会话唯一标识（动态生成）
+     * @param sessionId 会话唯一标识（动态生成）
      * @return MyAgent实例
      */
-    public MyAgent createMyAgent(String chatId) {
-        // 手动传入动态参数chatId，其他依赖从工厂的成员变量获取
+    public MyAgent createMyAgent(String sessionId) {
         return new MyAgent(
                 allTools,
                 dashscopeChatModel,
                 toolCallProperties,
                 contextManager,
-                chatId
+                sessionId
         );
     }
 }

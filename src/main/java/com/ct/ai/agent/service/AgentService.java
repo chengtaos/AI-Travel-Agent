@@ -17,7 +17,7 @@ public interface AgentService {
      * @param prompt 用户提示词
      * @return 执行结果
      */
-    String executeTask(String prompt);
+    String executeTask(String prompt,String sessionId);
 
     /**
      * 执行智能体任务（高级同步模式）
@@ -33,7 +33,7 @@ public interface AgentService {
      * @param prompt 用户提示词
      * @return SSE事件发射器
      */
-    SseEmitter executeTaskStream(String prompt);
+    SseEmitter executeTaskStream(String prompt,String sessionId);
 
     /**
      * 执行智能体任务（高级流式模式）
