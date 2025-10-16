@@ -23,10 +23,70 @@
 
 ## 核心组件说明
 
-### 1. 智能体核心
+### 1. Agent 架构设计
 
-- **MyAgent**：继承自ToolCallAgent，实现了具备工具调用能力的智能体，包含系统提示词和任务处理逻辑
-- **ToolCallAgent**：基于ReAct模式的工具调用智能体基类，实现"思考-行动"循环逻辑
+本项目采用 **分层继承 + ReAct 推理循环 + 会话治理** 的智能体架构，具备良好的可扩展性与生产级稳定性。整体架构基于面向对象设计与工厂模式构建，支持多会话并发、任务自动拆解与工具动态调用。
+
+### 架构层级
+
+```
++------------------------+
+|       MyAgent          |  ← 业务定制Agent（角色、提示词、行为）
++------------------------+
+           ↑
++------------------------+
+|    ToolCallAgent       |  ← 实现工具调用逻辑（think/act）
++------------------------+
+           ↑
++------------------------+
+|      ReActAgent        |  ← 定义“思考-行动”循环框架
++------------------------+
+           ↑
++------------------------+
+|       BaseAgent        |  ← 提供通用执行流程、状态管理、SSE流式支持
++------------------------+
+```
+
+#### 1. `BaseAgent`（基础层）
+
+- 定义智能体的通用生命周期与执行流程，支持同步（`run`）与流式（`runStream`）两种执行模式。
+- 内置状态机（`IDLE/RUNNING/FINISHED/ERROR`），防止非法状态迁移。
+- 支持最大步骤限制（`maxSteps`）、会话上下文管理（`messageList`）和资源清理机制。
+
+#### 2. `ReActAgent`（推理层）
+
+- 基于 **ReAct（Reasoning & Acting）** 模式实现“思考-决策-行动”闭环。
+- 抽象 `think()` 与 `act()` 方法，由子类实现具体推理与执行逻辑。
+- 通过模板方法模式控制执行流程，确保一致性。
+
+#### 3. `ToolCallAgent`（工具层）
+
+- 实现大模型驱动的工具调用能力，自动解析 `ChatResponse` 中的 `ToolCall` 指令。
+- 支持多工具异步执行、超时控制与失败熔断（`consecutiveFailures`）。
+- 集成 `SessionContextManager`，基于 Redis 持久化会话上下文，保障多轮对话连贯性。
+
+#### 4. `MyAgent`（业务层）
+
+- 继承自 `ToolCallAgent`，定制系统提示词（`SYSTEM_PROMPT`）与任务引导逻辑（`nextStepPrompt`）。
+- 注入 `ChatClient` 与可用工具列表，实现具体业务场景下的智能行为。
+
+### 执行流程
+
+```
+用户输入 → Agent.run() / runStream()
+         ↓
+   状态校验（validateBeforeRun）
+         ↓
+   进入 step() 循环（≤ maxSteps）
+         ↓
+     think() → 大模型判断是否调用工具
+         ↓
+      act()  → 执行工具调用并更新上下文
+         ↓
+   结果通过 SSE 或同步返回前端
+         ↓
+  达到 FINISHED 或 maxSteps → 结束
+```
 
 ### 2. 工具组件
 
@@ -127,6 +187,8 @@ String result = resourceDownloadTool.downloadResource(
 2. **业务异常**：通过`BaseResponse.businessError()`返回
 3. **系统异常**：通过`BaseResponse.systemError()`返回
 4. **工具调用失败**：包含连续失败检测和降级策略，可配置最大失败次数和缓存降级
+
+
 
 ## 扩展指南
 
