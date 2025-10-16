@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
  * 查询改写器（RAG检索前置处理组件）
  * 作用：优化用户原始查询，提升后续知识库检索的准确性
  * 核心逻辑：通过大模型对用户输入进行语义优化、补全或修正，生成更适合检索的查询语句
+ * 基于大语言模型的查询重写方法（LLM-based Query Rewriting），
+ * 具体实现为 Spring AI 提供的 RewriteQueryTransformer，
  */
 @Component
 public class QueryRewriter {
